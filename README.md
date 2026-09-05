@@ -1,12 +1,17 @@
 # Entregable: Aventura Algorítmica (Semanas 1 a 3)
 
-## 1. Concepto del Juego
-**Aventura Algorítmica** es un juego de acción y exploración en 2D con vista cenital (top-down). El jugador asume el rol de un guerrero capaz de explorar mazmorras, enfrentarse a enemigos usando un sistema de combate con combos, y esquivar ataques mediante un "dash" rápido. 
+### Integrantes:
+* Leonardo Josué Graciano Lara
+* [Nombre de tu compañero aquí]
 
-El juego integra mecánicas de estructuras de datos, incluyendo:
-*   **Sistema de Inventario:** Gestiona los objetos recolectados mediante listas dinámicas, permitiendo apilar objetos repetidos y respetando un límite de capacidad.
-*   **Historial de Acciones:** Un sistema de "rebobinado" estilo pila (LIFO) que guarda las coordenadas anteriores del jugador para deshacer movimientos.
-*   **Buscador Integrado:** Algoritmos de búsqueda lineal para encontrar objetos específicos y filtros por categoría dentro de la mochila.
+## 1. Concepto del Juego
+**Awakening of Makhai (Aventura Algorítmica)** es un juego de acción y exploración en 2D con vista cenital. El juego integra mecánicas de estructuras de datos (pilas, colas y listas) directamente en la jugabilidad.
+
+* **Mundo:** Una oscura mazmorra subterránea llena de obstáculos, trampas y salas interconectadas.
+* **Protagonista:** Jarek, un guerrero capaz de realizar rápidos "dashes" y combos de ataque cuerpo a cuerpo.
+* **Antagonista:** Makhai, una entidad oscura que aguarda en las profundidades de la mazmorra.
+* **Objeto Especial:** El Corazón de Cuarzo Roto.
+* **Problema a resolver:** Jarek debe explorar la mazmorra gestionando sus recursos, encontrar los fragmentos del Corazón de Cuarzo Roto y utilizar su poder para debilitar y derrotar a Makhai antes de que despierte por completo.
 
 ## 2. Estructura de Archivos (Guía 1)
 La carpeta del proyecto sigue un orden lógico para separar los recursos visuales de la lógica de programación:
@@ -23,6 +28,9 @@ La carpeta del proyecto sigue un orden lógico para separar los recursos visuale
 
 ## 3. Diagrama de Flujo y Pseudocódigo (Mecánica: Inventario)
 A continuación, se detalla el comportamiento del sistema de inventario, el cual se encarga de recibir objetos, verificar si ya existen para apilarlos, o agregarlos a un nuevo espacio si la capacidad lo permite.
+
+**Diagrama de Flujo (Guía 2):**
+![Diagrama del flujo del inventario](diagrama_inventario.jpg)
 
 **Pseudocódigo de la función `agregar_item`:**
     INICIO agregar_item(nombre, categoria, cantidad)
@@ -46,8 +54,6 @@ A continuación, se detalla el comportamiento del sistema de inventario, el cual
             RETORNAR Falso
         FIN SI
     FIN
-
-*(Nota: El diagrama de flujo correspondiente a este pseudocódigo se basa en las mismas decisiones lógicas: verificar existencia en lista -> si existe, sumar; si no, verificar espacio -> si hay espacio, agregar nuevo; si no, rechazar).*
 
 ## 4. Evidencia de Ejecución del Inventario
 El sistema de inventario funciona correctamente en el entorno gráfico con listas en Python. Al presionar la tecla **'I'**, se abre la interfaz de la mochila. Al presionar **'F'**, el sistema simula la recolección de una `"Llave Antigua"`, agregándola a la lista subyacente de Python e imprimiendo la confirmación en la consola. La interfaz gráfica se actualiza en tiempo real mostrando los objetos y sus cantidades.

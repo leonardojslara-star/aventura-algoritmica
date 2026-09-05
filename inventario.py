@@ -38,6 +38,34 @@ class Inventario:
                 print(f"- {item['nombre']} x{item['cantidad']} [{item['categoria']}]")
         print("---------------------------\n")
         
+    def soltar_item(self, nombre, cantidad=1):
+        """Elimina una cantidad específica de un objeto, o el objeto completo si llega a 0."""
+        for item in self.items:
+            if item["nombre"] == nombre:
+                if item["cantidad"] > cantidad:
+                    item["cantidad"] -= cantidad
+                    print(f"[-] Soltaste {cantidad} de {nombre}. Quedan: {item['cantidad']}")
+                else:
+                    self.items.remove(item)
+                    print(f"[-] Soltaste todos los {nombre}. El objeto fue removido de la mochila.")
+                return True
+                
+        print(f"[!] No tienes '{nombre}' en tu inventario para soltar.")
+        return False
+
+    def usar_item(self, nombre):
+        """Usa un objeto. Si es un consumible, reduce su cantidad."""
+        for item in self.items:
+            if item["nombre"] == nombre:
+                print(f"[*] Has usado: {nombre}")
+                # Si es un consumible (como una poción), se gasta al usarlo
+                if item["categoria"].lower() == "consumible":
+                    self.soltar_item(nombre, 1)
+                return True
+                
+        print(f"[!] No puedes usar '{nombre}' porque no está en tu inventario.")
+        return False
+        
         
 """ # --- PRUEBA AISLADA DEL MÓDULO ---
 if __name__ == "__main__":
