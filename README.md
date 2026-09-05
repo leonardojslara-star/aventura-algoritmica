@@ -30,7 +30,7 @@ La carpeta del proyecto sigue un orden lógico para separar los recursos visuale
 A continuación, se detalla el comportamiento del sistema de inventario, el cual se encarga de recibir objetos, verificar si ya existen para apilarlos, o agregarlos a un nuevo espacio si la capacidad lo permite.
 
 **Diagrama de Flujo (Guía 2):**
-![Diagrama del flujo del inventario](diagrama_inventario.jpg)
+![Diagrama del flujo del inventario](diagrama_inventario.jpeg)
 
 **Pseudocódigo de la función `agregar_item`:**
     INICIO agregar_item(nombre, categoria, cantidad)
