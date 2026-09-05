@@ -2,7 +2,7 @@
 
 ### Integrantes:
 * Leonardo Josué Graciano Lara
-* [Nombre de tu compañero aquí]
+* Roberto Javier Ayala Pérez
 
 ## 1. Concepto del Juego
 **Awakening of Makhai (Aventura Algorítmica)** es un juego de acción y exploración en 2D con vista cenital. El juego integra mecánicas de estructuras de datos (pilas, colas y listas) directamente en la jugabilidad.
