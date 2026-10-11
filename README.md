@@ -57,3 +57,11 @@ A continuación, se detalla el comportamiento del sistema de inventario, el cual
 
 ## 4. Evidencia de Ejecución del Inventario
 El sistema de inventario funciona correctamente en el entorno gráfico con listas en Python. Al presionar la tecla **'I'**, se abre la interfaz de la mochila. Al presionar **'F'**, el sistema simula la recolección de una `"Llave Antigua"`, agregándola a la lista subyacente de Python e imprimiendo la confirmación en la consola. La interfaz gráfica se actualiza en tiempo real mostrando los objetos y sus cantidades.
+
+# Awakening of Makhai - Aventura Algorítmica (Checkpoint 2)
+
+## 1. Cómo ejecutar el juego
+1. Asegúrate de tener Python 3 y la librería `pygame` instalada (`pip install pygame`).
+2. Ejecuta el archivo principal desde la raíz del proyecto:
+   ```bash
+   python main.py
