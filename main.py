@@ -4,12 +4,20 @@ Integra Inventario (Listas), Historial (Pila LIFO), Eventos/Turnos (Cola FIFO) y
 """
 import pygame
 import sys
+import estado_mundo
+import estado_mundo
 from historial import HistorialAcciones
 from inventario import Inventario
 from buscador import BuscadorInventario
 from eventos import ColaEventos
 from jugador import Jugador
 import mazmorra as maz
+from arboles import construir_arbol_misiones
+from grafo import construir_mapa_makhai
+from estado_mundo import EstadoMundo
+import textwrap
+
+
 
 def pedir_opcion_consola(mensaje, minimo, maximo):
     """
@@ -40,6 +48,19 @@ class Juego:
         self.historial = HistorialAcciones()
         self.mochila = Inventario(capacidad_maxima=10)
         self.gestor_eventos = ColaEventos()
+        
+        # Dentro del __init__ de tu juego (junto a self.jugador y self.gestor_eventos):
+        self.mapa = construir_mapa_makhai()
+        self.arbol_misiones = construir_arbol_misiones()
+        self.estado_mundo = EstadoMundo()
+        self.pila_deshacer = []  # Pila del Checkpoint 2 para revertir acciones
+        
+        # Variables para el HUD interactivo y alertas de casos límite en pantalla
+        self.mostrar_hud_estructuras = False
+        self.mensaje_alerta = "Presiona [TAB] para ver Mapa (Grafo), Misiones (Árbol) y Estado"
+        self.color_alerta = (220, 220, 220)
+        self.fuente_hud = pygame.font.SysFont("consolas", 16)
+        self.fuente_titulo = pygame.font.SysFont("consolas", 18, bold=True)
 
         # Generación recursiva de la mazmorra (Profundidad 2 = 7 salas)
         iter_nombres = iter(maz.NOMBRES_SALAS_MAKHAI)
@@ -81,6 +102,87 @@ class Juego:
         self.inventario_abierto = False
         self.ultimo_mensaje_evento = "Explora la mazmorra. Presiona [1] o [2] para avanzar de sala."
         self.turno_en_pantalla = self.gestor_eventos.cola_turnos[0]
+        
+    def mostrar_notificacion(self, texto, es_error=False):
+        """Muestra avisos en pantalla y consola sin detener Pygame (manejo de casos límite)."""
+        self.mensaje_alerta = texto
+        self.color_alerta = (255, 95, 95) if es_error else (110, 240, 150)
+        print(texto)
+
+    def viajar_a_sala(self, sala_destino):
+        """
+        Conecta Grafo (BFS) + Diccionario (Estado) + Árbol (Misiones) + Pila (Deshacer).
+        """
+        sala_actual = self.estado_mundo.consultar("sala_actual")
+        if sala_destino == sala_actual:
+            self.mostrar_notificacion(f"[i] Ya te encuentras en '{sala_actual}'.", es_error=True)
+            return
+
+        bloqueados = {"Cámara de Makhai"} if self.estado_mundo.consultar("camara_makhai_bloqueada", True) else set()
+        ruta = self.mapa.bfs_ruta_corta(sala_actual, sala_destino, bloqueados)
+
+        # Caso límite: sala inexistente o puerta bloqueada
+        if not ruta:
+            self.mostrar_notificacion(f"[!] Acceso denegado a '{sala_destino}': sala bloqueada o sin ruta.", es_error=True)
+            return
+
+        # Guardar snapshot en la pila del Checkpoint 2 antes de cambiar el estado
+        self.pila_deshacer.append({
+            "sala": sala_actual,
+            "recompensa": self.estado_mundo.consultar("recompensa_acumulada", 0),
+            "llave_lunar": self.estado_mundo.consultar("llave_lunar", False),
+            "bloqueada": self.estado_mundo.consultar("camara_makhai_bloqueada", True)
+        })
+
+        # Actualizar diccionario de estado del mundo
+        self.estado_mundo.actualizar("sala_actual", sala_destino)
+        self.estado_mundo.consultar("salas_visitadas", set()).add(sala_destino)
+
+        # Impacto cruzado entre salas del grafo y nodos del árbol de misiones
+        if sala_destino == "Forja de Obsidiana":
+            # INSERCIÓN de clave temporal en el diccionario
+            self.estado_mundo.actualizar("buff_forja", True)
+            if self.arbol_misiones.completar_mision("1. Despertar en el Umbral de Piedra"):
+                oro = self.estado_mundo.consultar("recompensa_acumulada", 0) + 50
+                self.estado_mundo.actualizar("recompensa_acumulada", oro)
+                self.mostrar_notificacion(f"[+] Ruta BFS: {' -> '.join(ruta)} | ¡Misión 1 completada (+50 oro) y Buff de Forja obtenido!")
+                return
+        elif sala_destino == "Santuario Lunar":
+            # ELIMINACIÓN de clave temporal del diccionario al consumir el buff
+            tenia_buff = self.estado_mundo.eliminar("buff_forja")
+            self.estado_mundo.actualizar("llave_lunar", True)
+            self.estado_mundo.actualizar("camara_makhai_bloqueada", False)
+            extra = " (Buff de Forja consumido)" if tenia_buff else ""
+            self.mostrar_notificacion(f"[+] ¡Llave Lunar obtenida{extra}! Cámara de Makhai desbloqueada.")
+            return
+
+        self.mostrar_notificacion(f"[+] Viajaste por ruta BFS: {' -> '.join(ruta)}")
+
+    def intentar_completar_siguiente_mision(self):
+        """Completa la primera misión disponible o prueba el bloqueo si se intenta saltar etapas."""
+        disponibles = self.arbol_misiones.misiones_disponibles()
+        if not disponibles:
+            self.mostrar_notificacion("[i] Todas las misiones del árbol están completadas.")
+            return
+
+        mision_objetivo = disponibles[0]
+        if self.arbol_misiones.completar_mision(mision_objetivo):
+            oro = self.estado_mundo.consultar("recompensa_acumulada", 0) + 50
+            self.estado_mundo.actualizar("recompensa_acumulada", oro)
+            self.mostrar_notificacion(f"[+] Misión completada: {mision_objetivo} (+50 oro)")
+
+    def deshacer_accion_mundo(self):
+        """Revierte el último movimiento usando la pila del Checkpoint 2."""
+        if not self.pila_deshacer:
+            self.mostrar_notificacion("[i] Pila vacía: no hay movimientos recientes para deshacer.", es_error=True)
+            return
+
+        anterior = self.pila_deshacer.pop()
+        self.estado_mundo.actualizar("sala_actual", anterior["sala"])
+        self.estado_mundo.actualizar("recompensa_acumulada", anterior["recompensa"])
+        self.estado_mundo.actualizar("llave_lunar", anterior["llave_lunar"])
+        self.estado_mundo.actualizar("camara_makhai_bloqueada", anterior["bloqueada"])
+        self.mostrar_notificacion(f"[<-] Deshacer: regresaste a '{anterior['sala']}'.")
 
     def _indexar_salas(self, nodo):
         """Guarda cada nodo del árbol en un diccionario para acceso rápido durante el backtracking."""
@@ -221,13 +323,37 @@ class Juego:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
                 self.corriendo = False
-
+                
             elif evento.type == pygame.KEYDOWN:
-                # Cambiar a salas conectadas con teclas 1 y 2
-                if evento.key == pygame.K_1:
-                    self.viajar_a_sala(0)
+                # Abrir / cerrar el panel de estructuras (Grafo, Árbol, Diccionario)
+                if evento.key == pygame.K_TAB:
+                    self.mostrar_hud_estructuras = not self.mostrar_hud_estructuras
+
+                # Teclas 1 al 5: Viajar entre salas del Grafo usando BFS
+                elif evento.key == pygame.K_1:
+                    self.viajar_a_sala("Umbral de Piedra")
                 elif evento.key == pygame.K_2:
-                    self.viajar_a_sala(1)
+                    self.viajar_a_sala("Forja de Obsidiana")
+                elif evento.key == pygame.K_3:
+                    self.viajar_a_sala("Puente Antiguo")
+                elif evento.key == pygame.K_4:
+                    self.viajar_a_sala("Santuario Lunar")
+                elif evento.key == pygame.K_5:
+                    self.viajar_a_sala("Cámara de Makhai")
+
+                # Tecla C: Completar siguiente misión disponible en el Árbol
+                elif evento.key == pygame.K_c:
+                    self.intentar_completar_siguiente_mision()
+
+                # Tecla B: Probar caso límite (intentar completar misión bloqueada)
+                elif evento.key == pygame.K_b:
+                    exito = self.arbol_misiones.completar_mision("8. Confrontar al Señor de Makhai")
+                    if not exito:
+                        self.mostrar_notificacion("[!] Bloqueo activo: completa las misiones previas del árbol.", es_error=True)
+
+                # Tecla Z: Deshacer último movimiento (Pila del Checkpoint 2)
+                elif evento.key == pygame.K_z:
+                    self.deshacer_accion_mundo()
 
                 # Esquive (Dash) con Alt Izquierdo
                 elif evento.key == pygame.K_LALT:
@@ -268,18 +394,42 @@ class Juego:
                     self.menu_consola_interactivo()
 
             # Sistema de combate con combos (Clic Izquierdo)
+            # --- SISTEMA DE COMBATE CON COMBOS (CLIC IZQUIERDO) ---
+            # --- SISTEMA DE COMBATE CON COMBOS (CLIC IZQUIERDO) ---
+            # --- SISTEMA DE COMBATE CON COMBOS (CLIC IZQUIERDO) ---
+            # --- SISTEMA DE COMBATE CON COMBOS (CLIC IZQUIERDO) ---
             elif evento.type == pygame.MOUSEBUTTONDOWN:
-                if evento.button == 1:
+                if evento.button == 1:  # Clic izquierdo
+                    
+                    # Obtenemos la dirección actual del jugador
+                    dir_ataque = self.jugador.direccion_actual
+                    
+                    # Normalizamos para que las diagonales usen las animaciones cardinales existentes
+                    if "abajo" in dir_ataque:
+                        dir_ataque = "abajo"
+                    elif "arriba" in dir_ataque:
+                        dir_ataque = "arriba"
+                    elif "derecha" in dir_ataque:
+                        dir_ataque = "derecha"
+                    elif "izquierda" in dir_ataque:
+                        dir_ataque = "izquierda"
+
+                    # Aplicamos la dirección limpia al jugador
+                    self.jugador.direccion_actual = dir_ataque
+
+                    # CASO A: Input Buffer (Guardar el combo)
                     if self.jugador.estado_actual == "ataque_1":
                         if not self.jugador.combo_solicitado:
-                            self.jugador.combo_solicitado = True
-                            self.gestor_eventos.agregar_evento("ATAQUE", self.jugador.direccion_actual)
+                            self.jugador.combo_solicitado = True 
+                            self.gestor_eventos.agregar_evento("ATAQUE", dir_ataque)
                             print("[*] ¡Input Buffer: Combo Guardado en Memoria!")
+                            
+                    # CASO B: Iniciar el ataque normal
                     elif "ataque" not in self.jugador.estado_actual:
                         self.jugador.cambiar_estado("ataque_1")
                         self.jugador.combo_solicitado = False
-                        self.gestor_eventos.agregar_evento("ATAQUE", self.jugador.direccion_actual)
-                        print("[*] ¡Ataque 1 Iniciado!")
+                        self.gestor_eventos.agregar_evento("ATAQUE", dir_ataque)
+                        print(f"[*] ¡Ataque 1 Iniciado hacia: {dir_ataque}!")
 
     def actualizar(self):
         """Actualiza la física del jugador, animaciones, puertas y colisiones de combate."""
@@ -298,37 +448,60 @@ class Juego:
             elif self.jugador.direccion_actual == "arriba":
                 self.jugador.y -= self.jugador.velocidad * multiplicador_dash
 
-        # B) Movimiento en 8 direcciones (incluyendo diagonal)
+        # Movimiento bidireccional fluido en main.py
         elif "ataque" not in self.jugador.estado_actual:
             vel_x = 0
             vel_y = 0
-            if teclas[pygame.K_d]:
+            
+            mov_derecha = teclas[pygame.K_d]
+            mov_izquierda = teclas[pygame.K_a]
+            mov_arriba = teclas[pygame.K_w]
+            mov_abajo = teclas[pygame.K_s]
+
+            if mov_derecha:
                 vel_x = self.jugador.velocidad
                 self.jugador.direccion_actual = "derecha"
                 se_esta_moviendo = True
-            elif teclas[pygame.K_a]:
+            elif mov_izquierda:
                 vel_x = -self.jugador.velocidad
                 self.jugador.direccion_actual = "izquierda"
                 se_esta_moviendo = True
 
-            if teclas[pygame.K_w]:
+            if mov_arriba:
                 vel_y = -self.jugador.velocidad
                 se_esta_moviendo = True
-                if vel_x == 0:
-                    self.jugador.direccion_actual = "arriba"
-            elif teclas[pygame.K_s]:
+                self.jugador.direccion_actual = "arriba"
+            elif mov_abajo:
                 vel_y = self.jugador.velocidad
                 se_esta_moviendo = True
-                if vel_x == 0:
-                    self.jugador.direccion_actual = "abajo"
+                self.jugador.direccion_actual = "abajo"
 
-            self.jugador.x += vel_x
-            self.jugador.y += vel_y
+            # Detección de diagonales visuales al correr
+            if mov_abajo and mov_derecha:
+                self.jugador.direccion_actual = "abajo_derecha"
+            elif mov_abajo and mov_izquierda:
+                self.jugador.direccion_actual = "abajo_izquierda"
+            elif mov_arriba and mov_derecha:
+                self.jugador.direccion_actual = "derecha" 
+            elif mov_arriba and mov_izquierda:
+                self.jugador.direccion_actual = "izquierda"
 
-            if se_esta_moviendo:
-                self.jugador.cambiar_estado("correr")
+            # --- 2. APLICAR MOVIMIENTO SOLO SI NO ESTÁ ATACANDO ---
+            if "ataque" in self.jugador.estado_actual:
+                # Si está ejecutando un tajo, congelamos el desplazamiento para que no patine
+                vel_x = 0
+                vel_y = 0
             else:
-                self.jugador.cambiar_estado("idle")
+                # Si camina o corre normalmente, aplicamos las coordenadas
+                self.jugador.x += vel_x
+                self.jugador.y += vel_y
+
+                if se_esta_moviendo:
+                    self.jugador.cambiar_estado("correr")
+                else:
+                    if "abajo" in self.jugador.direccion_actual:
+                        self.jugador.direccion_actual = "abajo"
+                    self.jugador.cambiar_estado("idle")
 
         # Mantener al jugador dentro de los muros de la sala
         self.jugador.x = max(50, min(self.jugador.x, 680))
@@ -422,8 +595,122 @@ class Juego:
                     linea = f"- {item['nombre']} x{item['cantidad']} ({item['categoria']})"
                     self.pantalla.blit(self.fuente_pequena.render(linea, True, (255, 255, 255)), (35, pos_y))
                     pos_y += 25
+        
+        # 1. Barra inferior fija con el estado actual y alertas de casos límite
+        barra = pygame.Surface((self.pantalla.get_width(), 32), pygame.SRCALPHA)
+        barra.fill((10, 12, 20, 210))
+        self.pantalla.blit(barra, (0, self.pantalla.get_height() - 32))
+        txt_alerta = self.fuente_hud.render(self.mensaje_alerta, True, self.color_alerta)
+        self.pantalla.blit(txt_alerta, (12, self.pantalla.get_height() - 25))
+
+        # 2. Panel desplegable con [TAB] mostrando Grafo, Árbol y Diccionario en vivo
+        # 2. Panel desplegable con [TAB] mostrando Grafo, Árbol y Diccionario en vivo
+        if self.mostrar_hud_estructuras:
+            panel = pygame.Surface((760, 460), pygame.SRCALPHA)
+            panel.fill((15, 18, 30, 235))
+            pygame.draw.rect(panel, (100, 160, 255), panel.get_rect(), 2)
+            self.pantalla.blit(panel, (20, 20))
+
+            sala_act = self.estado_mundo.consultar("sala_actual")
+            bloqueados = {"Cámara de Makhai"} if self.estado_mundo.consultar("camara_makhai_bloqueada", True) else set()
+            alcanzables = sorted(list(self.mapa.dfs_zonas_alcanzables(sala_act, bloqueados)))
+            ruta_jefe = self.mapa.bfs_ruta_corta(sala_act, "Cámara de Makhai", bloqueados)
+            disponibles = self.arbol_misiones.misiones_disponibles()
+            total_recompensas = self.arbol_misiones.postorden_recompensas()
+            etapas = self.arbol_misiones.recorrido_por_niveles()
+
+            lineas = [
+            ("ESTADO DEL MUNDO (Diccionario)", (255, 215, 100)),
+            (f"  {self.estado_mundo.resumen_progreso()}", (235, 235, 235)),
+            (f"  Banderas activas: {self.estado_mundo.filtrar_estados_activos()}", (200, 220, 255)),
+            ("", (255, 255, 255)),
+            ("MAPA DE SALAS (Grafo - BFS y DFS)", (120, 220, 255)),
+            (f"  Zonas alcanzables (DFS): {', '.join(alcanzables)}", (235, 235, 235)),
+            (f"  Ruta al Jefe (BFS): {' -> '.join(ruta_jefe) if ruta_jefe else 'BLOQUEADA (Requiere Llave Lunar)'}", (235, 235, 235)),
+            ("  Viajar: [F1] Umbral [F2] Forja [F3] Puente [F4] Santuario [F5] Cámara", (170, 185, 210)),
+            ("", (255, 255, 255)),
+            ("ÁRBOL DE MISIONES (Preorden / Postorden / Niveles)", (140, 255, 160)),
+            (f"  Disponibles ahora: {', '.join(disponibles) if disponibles else 'Ninguna'}", (235, 235, 235)),
+            (f"  Recompensa total del árbol (Postorden): {total_recompensas} oro", (235, 235, 235)),
+            (f"  Niveles del árbol (Por niveles): {len(etapas)} etapas activas", (200, 220, 255)),
+            ("  Acciones: [C] Completar misión  [B] Probar bloqueo  [U] Deshacer", (170, 185, 210)),
+        ]
+        
+            y_offset = 32
+            for texto, color in lineas:
+                if not texto:
+                    y_offset += 14
+                    continue
+                # Divide automáticamente cualquier línea que supere los 82 caracteres
+                sublineas = textwrap.wrap(texto, width=82, subsequent_indent="    ")
+                for sub in sublineas:
+                    superficie_txt = self.fuente_hud.render(sub, True, color)
+                    self.pantalla.blit(superficie_txt, (35, y_offset))
+                    y_offset += 22
 
         pygame.display.flip()
+        
+    def mover_jugador(nueva_sala, mapa, arbol_misiones, estado_mundo, pila_deshacer):
+        """
+        Conecta las 3 estructuras:
+        1. Verifica en el Diccionario si hay bloqueos y consulta el Grafo.
+        2. Actualiza el Diccionario y guarda snapshot en la Pila de Deshacer.
+        3. Completa misiones en el Árbol y desbloquea nuevas rutas en el Grafo.
+        """
+        bloqueados = {"Cámara de Makhai"} if estado_mundo.consultar("camara_makhai_bloqueada", True) else set()
+        sala_actual = estado_mundo.consultar("sala_actual")
+
+        # Validar si la sala existe y es alcanzable usando BFS
+        ruta = mapa.bfs_ruta_corta(sala_actual, nueva_sala, bloqueados)
+        if not ruta:
+            print(f"[!] No puedes ir a '{nueva_sala}': ruta inexistente o sala bloqueada.")
+            return False
+
+        # Guardar estado anterior en la pila del Checkpoint 2 antes de mutar
+        pila_deshacer.append({
+            "sala_anterior": sala_actual,
+            "recompensa_anterior": estado_mundo.consultar("recompensa_acumulada", 0)
+        })
+
+        # Actualizar diccionario
+        estado_mundo.actualizar("sala_actual", nueva_sala)
+        visitadas = estado_mundo.consultar("salas_visitadas", set())
+        visitadas.add(nueva_sala)
+
+        # Impacto cruzado: llegar a la Forja desbloquea progreso en el Árbol de Misiones
+        if nueva_sala == "Forja de Obsidiana":
+            if arbol_misiones.completar_mision("1. Despertar en el Umbral de Piedra"):
+                estado_mundo.actualizar("recompensa_acumulada", estado_mundo.consultar("recompensa_acumulada", 0) + 50)
+        elif nueva_sala == "Santuario Lunar":
+            estado_mundo.actualizar("llave_lunar", True)
+            estado_mundo.actualizar("camara_makhai_bloqueada", False)
+            print("[+] ¡Obtuviste la Llave Lunar! La Cámara de Makhai ahora es accesible en el grafo.")
+
+        return True
+
+
+    def deshacer_ultimo_movimiento(estado_mundo, pila_deshacer):
+        """Revierte el estado del mundo usando la pila del Checkpoint 2."""
+        if not pila_deshacer:
+            print("[i] No hay acciones recientes para deshacer.")
+            return
+        anterior = pila_deshacer.pop()
+        estado_mundo.actualizar("sala_actual", anterior["sala_anterior"])
+        estado_mundo.actualizar("recompensa_acumulada", anterior["recompensa_anterior"])
+        print(f"[<-] Acción revertida. Regresaste a '{anterior['sala_anterior']}'.")
+
+
+    def leer_opcion_segura(mensaje, opciones_validas):
+        """Evita cierres por texto, 0 o números negativos en menús de consola."""
+        entrada = input(mensaje).strip()
+        if not entrada.isdigit():
+            print("[!] Entrada inválida: debes ingresar un número.")
+            return None
+        numero = int(entrada)
+        if numero <= 0 or numero not in opciones_validas:
+            print(f"[!] Opción fuera de rango. Elige entre: {opciones_validas}")
+            return None
+        return numero
 
     def ejecutar(self):
         """Ejecuta el bucle principal a 60 FPS."""

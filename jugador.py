@@ -30,6 +30,8 @@ class Jugador:
             "correr_izquierda": self.cortar_spritesheet("assets/jugador/RUN/run_left.png", 8),
             "correr_arriba": self.cortar_spritesheet("assets/jugador/RUN/run_up.png", 8),
             "correr_abajo": self.cortar_spritesheet("assets/jugador/RUN/run_down.png", 8),
+            "correr_abajo_derecha": self.cortar_spritesheet("assets/jugador/RUN/run_down_right.png", 8),
+            "correr_abajo_izquierda": self.cortar_spritesheet("assets/jugador/RUN/run_down_left.png", 8),
             "ataque_1_derecha": self.cortar_spritesheet("assets/jugador/ATTACK_1/attack1_right.png", 8),
             "ataque_1_izquierda": self.cortar_spritesheet("assets/jugador/ATTACK_1/attack1_left.png", 8),
             "ataque_1_arriba": self.cortar_spritesheet("assets/jugador/ATTACK_1/attack1_up.png", 8),

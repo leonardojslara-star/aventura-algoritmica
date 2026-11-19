@@ -1,4 +1,4 @@
-# Entregable: Aventura Algorítmica (Checkpoint 1 y Checkpoint 2)
+# Entregable: Aventura Algorítmica (Checkpoint 1, Checkpoint 2 y Checkpoint 3)
 
 ### Integrantes:
 * **Leonardo Josué Graciano Lara**
@@ -7,26 +7,29 @@
 ---
 
 ## 1. Concepto del Juego (Base Checkpoint 1)
-**Awakening of Makhai (Aventura Algorítmica)** es un juego de acción y exploración en 2D con vista cenital e interfaz híbrida (Pygame + Consola). El juego integra mecánicas de estructuras de datos (listas, pilas, colas y árboles recursivos) directamente en la jugabilidad.
+**Awakening of Makhai (Aventura Algorítmica)** es un juego de acción y exploración en 2D con vista cenital e interfaz híbrida (Pygame + Consola). El juego integra mecánicas de estructuras de datos (listas, pilas, colas, árboles recursivos, grafos y diccionarios) directamente en la jugabilidad.
 
-* **Mundo:** Una oscura mazmorra subterránea llena de obstáculos, trampas y salas interconectadas generadas recursivamente.
+* **Mundo:** Una oscura mazmorra subterránea llena de obstáculos, trampas y salas interconectadas generadas recursivamente, conectada a una red de regiones principales.
 * **Protagonista:** Jarek / Makhai, un guerrero capaz de realizar rápidos "dashes" y combos de ataque cuerpo a cuerpo.
 * **Antagonista:** Makhai / El Centinela de Cuarzo, una entidad oscura que aguarda en las profundidades de la mazmorra.
-* **Objeto Especial:** El Corazón de Cuarzo Roto.
-* **Problema a resolver:** El jugador debe explorar la mazmorra gestionando sus recursos en el inventario, retroceder estratégicamente usando su historial de pasos, enfrentar los eventos y turnos de combate, y recolectar las reliquias en las salas más profundas.
+* **Objeto Especial:** El Corazón de Cuarzo Roto y la Llave Lunar.
+* **Problema a resolver:** El jugador debe explorar la mazmorra gestionando sus recursos en el inventario, retroceder estratégicamente usando su historial de pasos, enfrentar los eventos y turnos de combate, navegar rutas óptimas en el grafo del mapa y desbloquear las misiones jerárquicas para enfrentar al jefe final.
 
 ---
 
-## 2. Estructura de Archivos (Guía 1 a Guía 7)
+## 2. Estructura de Archivos (Checkpoint 1 a Checkpoint 3)
 La carpeta del proyecto sigue una arquitectura modular donde `main.py` importa cada estructura sin duplicar código:
 
 * **`assets/`**: Recursos gráficos (sprites del jugador y efectos visuales).
-* **`main.py`**: Archivo central que integra todas las estructuras, el bucle gráfico de Pygame y el menú interactivo de consola.
+* **`main.py`**: Archivo central que integra todas las estructuras, el bucle gráfico de Pygame, el panel HUD desplegable y el menú interactivo de consola.
 * **`inventario.py`**: Lógica y almacenamiento de la mochila mediante Listas (Checkpoint 1).
 * **`buscador.py`**: Algoritmos de búsqueda lineal y filtrado por categoría (Checkpoint 1).
 * **`historial.py`**: Historial de acciones y *backtracking* real entre salas usando una Pila LIFO (Semana 5 / Guía 5).
 * **`eventos.py`**: Gestor de eventos del mapa y sistema rotativo de turnos usando Colas FIFO con `collections.deque` (Semana 6 / Guía 6).
 * **`mazmorra.py`**: Generación recursiva del árbol de salas de la mazmorra y recorrido jerárquico (Semana 7 / Guía 7).
+* **`grafo.py`**: Implementación genérica de grafo con lista de adyacencia y búsquedas **BFS** y **DFS** para navegación entre regiones (Checkpoint 3).
+* **`arboles.py`**: Árbol general de misiones dependientes (recorridos preorden, postorden y por niveles) y árbol binario de decisión para IA enemiga (Checkpoint 3).
+* **`estado_mundo.py`**: Gestión dinámica del estado del mundo mediante diccionario con consultas seguras (`.get()`), inserción, eliminación y filtros (Checkpoint 3).
 * **`jugador.py`**: Máquina de estados, animación de sprites y físicas en Pygame.
 * **`mapas.py`**: Prototipo de matriz de tiles de la sala inicial.
 * **`README.md`**: Documentación técnica del proyecto.
@@ -66,7 +69,7 @@ FIN
 
 ---
 
-## 4.Cómo Ejecutar el Juego (Checkpoint 2)
+## 4. Cómo Ejecutar el Juego (Checkpoint 2 y Checkpoint 3)
 1. Asegúrate de tener Python 3 y la librería `pygame` instalada:
    ```bash
    pip install pygame
@@ -75,13 +78,22 @@ FIN
    ```bash
    python main.py
    ```
+   *(Opcional) Para ejecutar la demostración aislada de árboles en consola sin librerías externas:*
+   ```bash
+   python arboles.py
+   ```
 3. **Controles en la ventana de Pygame:**
    * `W, A, S, D`: Mover al personaje | `Alt Izq`: Dash | `Clic Izq`: Ataque / Combo.
-   * `1` o `2`: Avanzar a la sala conectada 1 o 2 (registra en Pila y dispara evento de la Cola).
-   * `BACKSPACE`: Deshacer el último movimiento (*Backtracking* real a la sala anterior).
+   * `1` o `2`: Avanzar a la sala conectada 1 o 2 de la mazmorra recursiva (registra en Pila y dispara evento de la Cola).
+   * `BACKSPACE`: Deshacer el último movimiento de mazmorra (*Backtracking* real a la sala anterior).
    * `F`: Recoger el objeto de la sala actual hacia el Inventario | `I`: Abrir/Cerrar Mochila en pantalla.
    * `T`: Rotar turno de combate | `H`: Ver historial en consola.
    * **`M`**: Abrir el **Menú de Consola Interactivo** para ejecutar todas las opciones y probar casos límite por teclado.
+   * **`TAB`**: Abrir / cerrar el **Panel HUD en vivo** (Estado del Mundo, Mapa/Grafo y Árbol de Misiones).
+   * **`F1` a `F5`**: Viajar entre regiones del grafo utilizando rutas más cortas (**BFS**).
+   * **`C`**: Completar la siguiente misión disponible en el árbol.
+   * **`B`**: Probar caso límite intentando completar una misión bloqueada sin prerrequisitos.
+   * **`U`**: Deshacer el último desplazamiento en el grafo y revertir el estado del mundo (Pila).
 
 ---
 
@@ -160,8 +172,38 @@ FIN
 
 ---
 
-## 6. Árbol de la Mazmorra Generada
+## 6. Documentación Técnica de las Estructuras (Checkpoint 3)
 
+### A. Mapa Interconectado con Grafo Genérico (`grafo.py` - Semanas 12 y 13)
+* **Mecánica que implementa:** Modela la red de regiones principales de *Awakening of Makhai* (`Umbral de Piedra`, `Forja de Obsidiana`, `Puente Antiguo`, `Santuario Lunar` y `Cámara de Makhai`), calculando rutas óptimas entre salas y verificando qué zonas son alcanzables cuando hay bloqueos.
+* **Por qué el Grafo es la estructura adecuada:** A diferencia de un árbol, el mapa del mundo contiene múltiples caminos alternativos y ciclos (se puede llegar al *Santuario Lunar* tanto por la *Forja* como por el *Puente*). Una lista de adyacencia representa estas conexiones bidireccionales sin duplicar nodos.
+* **Complejidad de operaciones:**
+  * `bfs_ruta_corta()` (Búsqueda en Anchura): **$O(V + E)$**, garantiza encontrar el camino con menor número de saltos entre dos salas.
+  * `dfs_zonas_alcanzables()` (Búsqueda en Profundidad): **$O(V + E)$**, recorre todas las salas conectadas accesibles antes de toparse con una puerta cerrada.
+  *(Donde $V$ es el número de salas/vértices y $E$ el número de caminos/aristas).*
+
+### B. Árbol de Misiones y Árbol de Decisión (`arboles.py` - Semana 14)
+* **Mecánica que implementa:** 
+  1. **Árbol General de Misiones:** Organiza 8 misiones en 3 niveles de profundidad con bloqueo automático si no se ha completado la misión padre.
+  2. **Árbol Binario de Decisión:** Modela el comportamiento táctico de los enemigos evaluando condiciones del entorno (`jugador_cerca`, `vida_baja`, `jefe_alerta`).
+* **Por qué el Árbol es la estructura adecuada:** Las misiones siguen una jerarquía estricta de dependencias (prerrequisitos), mientras que la IA enemiga requiere tomar decisiones binarias rápidas bajando desde la raíz hasta una acción hoja.
+* **Complejidad de operaciones:**
+  * Recorridos `preorden()`, `postorden_recompensas()` (suma total de oro del árbol) y `recorrido_por_niveles()`: **$O(n)$**, donde $n$ es el total de misiones.
+  * Evaluación de decisión `decidir(nodo, situacion)`: **$O(h)$**, donde $h$ es la altura del árbol de decisión (en el peor caso, si el árbol quedara degenerado en una sola línea, $h = n$ y sería $O(n)$).
+
+### C. Estado Dinámico del Mundo con Diccionario (`estado_mundo.py` - Semana 15)
+* **Mecánica que implementa:** Almacena y actualiza en tiempo real la sala actual, el oro acumulado, llaves obtenidas (`llave_lunar`), estados de bloqueo (`camara_makhai_bloqueada`) y mejoras temporales (`buff_forja`).
+* **Por qué el Diccionario es la estructura adecuada:** El bucle gráfico de Pygame consulta y modifica banderas de estado en cada fotograma. El acceso por clave hash ofrece complejidad **$O(1)$ promedio**, evitando tener que recorrer una lista completa en **$O(n)$** cada vez que se verifica si una puerta está abierta. Además, el uso de `.get()` y `.pop()` previene errores `KeyError` ante claves inexistentes.
+
+### D. Integración Cruzada y Decisión al Deshacer (`[U]`)
+* **Trabajo conjunto de las estructuras:** Viajar por el **Grafo** (`[F1]`-`[F5]`) consulta los bloqueos en el **Diccionario**; entrar a la *Forja* inserta `"buff_forja"` en el diccionario y completa la misión raíz en el **Árbol**; entrar al *Santuario Lunar* elimina `"buff_forja"` e inserta `"llave_lunar"`, desbloqueando la ruta **BFS** hacia la *Cámara de Makhai*.
+* **Decisión sobre el estado al deshacer:** Al presionar **`[U]`**, se extrae el último estado guardado en `self.pila_deshacer` (Checkpoint 2) y se revierten en el diccionario la sala actual, el oro y la posesión de la *Llave Lunar* (volviendo a bloquear la *Cámara de Makhai* en el grafo). Las misiones ya completadas en el árbol se conservan para no romper la progresión narrativa.
+
+---
+
+## 7. Diagramas de Estructuras
+
+### Árbol de la Mazmorra Generada (`mazmorra.py`)
 ```text
 └── Sala de Inicio: Umbral de Piedra (Nivel 0)
     └── Pasillo de los Faroles Caídos (Nivel 1)
@@ -172,15 +214,36 @@ FIN
         └── Altar del Despertar de Makhai (Nivel 2) [🎁 Item: Llave de las Sombras] [💀 JEFE]
 ```
 
+### Grafo del Mapa (`construir_mapa_makhai`)
+```text
+                    [Forja de Obsidiana]
+                   /                    \
+[Umbral de Piedra]                      [Santuario Lunar] --- (Llave Lunar) --- [Cámara de Makhai]
+                   \                    /
+                     [Puente Antiguo]
+```
+
+### Árbol de Misiones (`construir_arbol_misiones`)
+```text
+[1. Despertar en el Umbral de Piedra] (Nivel 0 - Raíz)
+ ├── [2. Forjar la Hoja de Obsidiana] (Nivel 1)
+ │    ├── [4. Inscribir Runas de Poder] (Nivel 2 - Hoja)
+ │    └── [5. Templar el Acero Lunar] (Nivel 2)
+ │         └── [8. Confrontar al Señor de Makhai] (Nivel 3 - Hoja)
+ └── [3. Recuperar el Amuleto de Jarek] (Nivel 1)
+      ├── [6. Derrotar al Guardián del Puente] (Nivel 2 - Hoja)
+      └── [7. Descifrar el Pergamino Ancestral] (Nivel 2 - Hoja)
+```
+
 ---
 
-## 7. Aporte de Cada Integrante
-* **Leonardo Josué Graciano Lara:** Implementación del módulo de Historial con Pila (`historial.py`), generación recursiva de la mazmorra (`mazmorra.py`), integración general en `main.py` (motor gráfico Pygame + menú interactivo de consola) y validación de casos límite.
-* **Roberto Javier Ayala Pérez:** Implementación del módulo de Eventos y Turnos con Cola usando `deque` (`eventos.py`), acoplamiento con el sistema de Inventario y Buscador del Checkpoint 1 (`inventario.py`, `buscador.py`), pruebas de ejecución y elaboración de la documentación técnica en `README.md`.
+## 8. Aporte de Cada Integrante
+* **Leonardo Josué Graciano Lara:** Implementación del módulo de Historial con Pila (`historial.py`), generación recursiva de la mazmorra (`mazmorra.py`), implementación de `arboles.py` (recorridos preorden, postorden, por niveles y árbol de decisión), integración general en `main.py` (motor gráfico Pygame, panel HUD interactivo y menú de consola) y validación de casos límite.
+* **Roberto Javier Ayala Pérez:** Implementación del módulo de Eventos y Turnos con Cola usando `deque` (`eventos.py`), acoplamiento con el sistema de Inventario y Buscador del Checkpoint 1 (`inventario.py`, `buscador.py`), implementación de la clase genérica `Grafo` (`grafo.py`), gestión de `estado_mundo.py`, pruebas de ejecución y elaboración de la documentación técnica en `README.md`.
 
 ---
 
-## 8. Evidencia de Ejecución (Partida Completa y Casos Límite)
+## 9. Evidencia de Ejecución (Partida Completa y Casos Límite)
 
 ```text
 === Awakening of Makhai: La Cripta del Cuarzo ===
@@ -316,4 +379,13 @@ Opción: -5
 [!] Opción no válida. Elige un número entre 1 y 7.
 Opción: 9
 [!] Opción no válida. Elige un número entre 1 y 7.
+
+--- EVIDENCIA CHECKPOINT 3 (GRAFO + ÁRBOL + DICCIONARIO + CASOS LÍMITE) ---
+[!] Acceso denegado a 'Cámara de Makhai': sala bloqueada o sin ruta.
+[+] Ruta BFS: Umbral de Piedra -> Forja de Obsidiana | ¡Misión 1 completada (+50 oro) y Buff de Forja obtenido!
+[!] ERROR: La misión '8. Confrontar al Señor de Makhai' está BLOQUEADA. Debes completar su misión predecesora primero.
+[+] Ruta BFS: Forja de Obsidiana -> Santuario Lunar
+[+] ¡Llave Lunar obtenida (Buff de Forja consumido)! Cámara de Makhai desbloqueada.
+[+] Viajaste por ruta BFS: Santuario Lunar -> Cámara de Makhai
+[<-] Deshacer: regresaste a 'Santuario Lunar'.
 ```
